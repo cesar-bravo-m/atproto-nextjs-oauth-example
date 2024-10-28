@@ -1,14 +1,11 @@
 import { createDb, migrateToLatest, Database } from '@/db'
-import { Firehose } from '@atproto/sync'
-import { pino } from 'pino'
 import type { OAuthClient } from '@atproto/oauth-client-node'
 import { NodeOAuthClient } from '@atproto/oauth-client-node'
 import { IdResolver, MemoryCache } from '@atproto/identity'
 import { cookies } from 'next/headers'
 import { Agent } from '@atproto/api'
-import * as Status from '@/lexicon/types/xyz/statusphere/status'
 
-type Session = { did: string }
+export type Session = { did: string }
 
 const HOUR = 60e3 * 60
 const DAY = HOUR * 24
@@ -125,81 +122,21 @@ export const createClient = async (db: Database, stateStore: StateStore, session
 
 export type AppContext = {
     db: Database
-    ingester: Firehose
-    logger: pino.Logger
     oauthClient: OAuthClient
     resolver: BidirectionalResolver
 }
 
-export function createIngester(db: Database, idResolver: IdResolver) {
-  const logger = pino({ name: 'firehose ingestion' })
-  return new Firehose({
-    idResolver,
-    handleEvent: async (evt) => {
-      // Watch for write events
-      if (evt.event === 'create' || evt.event === 'update') {
-        const now = new Date()
-        const record = evt.record
-
-        // If the write is a valid status update
-        if (
-          evt.collection === 'xyz.statusphere.status' &&
-          Status.isRecord(record) &&
-          Status.validateRecord(record).success
-        ) {
-          // Store the status in our SQLite
-          await db
-            .insertInto('status')
-            .values({
-              uri: evt.uri.toString(),
-              authorDid: evt.did,
-              status: record.status,
-              createdAt: record.createdAt,
-              indexedAt: now.toISOString(),
-            })
-            .onConflict((oc) =>
-              oc.column('uri').doUpdateSet({
-                status: record.status,
-                indexedAt: now.toISOString(),
-              })
-            )
-            .execute()
-        }
-      } else if (
-        evt.event === 'delete' &&
-        evt.collection === 'xyz.statusphere.status'
-      ) {
-        // Remove the status from our SQLite
-        await db.deleteFrom('status').where('uri', '=', evt.uri.toString()).execute()
-      }
-    },
-    onError: (err) => {
-      logger.error({ err }, 'error on firehose ingestion')
-    },
-    filterCollections: ['xyz.statusphere.status'],
-    excludeIdentity: true,
-    excludeAccount: true,
-  })
-}
-
-
 export const createContext = async (DB_PATH: string) => {
-    const logger = pino({ name: 'server start' })
     const db = createDb(DB_PATH)
     await migrateToLatest(db)
     const stateStore = new StateStore(db)
     const sessionStore = new SessionStore(db)
     const oauthClient = await createClient(db, stateStore, sessionStore)
     const baseIdResolver = createIdResolver()
-    const ingester = createIngester(db, baseIdResolver)
     const resolver = createBidirectionalResolver(baseIdResolver)
-
-    ingester.start()
 
     return {
         db,
-        ingester,
-        logger,
         oauthClient,
         resolver
     }
@@ -216,7 +153,7 @@ export async function getSessionAgent(ctx: AppContext) {
         const oauthSession = await ctx.oauthClient.restore(session.did)
         return oauthSession ? new Agent(oauthSession) : null
     } catch (err) {
-        ctx.logger.warn({ err }, 'oauth restore failed')
+        console.log("### oauth restore error", err);
         session.destroy()
         return null
     }

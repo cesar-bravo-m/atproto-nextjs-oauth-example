@@ -1,9 +1,6 @@
 import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
-
-type Session = {
-    did: string
-}
+import type { Session } from "@/context";
 
 export async function GET() {
     const session = await getIronSession<Session>(await cookies(), {

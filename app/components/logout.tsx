@@ -2,7 +2,7 @@
 
 const Logout = () => {
   const handleLogout = async () => {
-    const response = await fetch('/logout')
+    const response = await fetch('/oauth/logout')
     if (response.ok) {
       window.location.href = '/'
     }

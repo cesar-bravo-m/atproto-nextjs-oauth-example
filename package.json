@@ -18,12 +18,14 @@
     "envalid": "^8.0.0",
     "iron-session": "^8.0.3",
     "kysely": "^0.27.4",
+    "multiformats": "^13.3.0",
     "next": "15.0.1",
     "oauth-test-atproto": "file:",
     "react": "19.0.0-rc-69d4b800-20241021",
     "react-dom": "19.0.0-rc-69d4b800-20241021"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
